@@ -1,9 +1,12 @@
 [package]
 name = "bufpool"
 version = "0.1.0"
+description = "Vec<u8> pool allocator"
+license = "Apache-2.0"
+homepage = "https://github.com/wilsonzlin/bufpool"
+repository = "https://github.com/wilsonzlin/bufpool.git"
+authors = ["Wilson Lin <code@wilsonl.in>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 off64 = "0.6.0"
