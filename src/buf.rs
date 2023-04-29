@@ -1,4 +1,7 @@
-use crate::BufPoolForSize;
+use crate::BufPool;
+use off64::usz;
+use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -21,20 +24,24 @@ pub struct Buf {
   pub(crate) data: *mut u8,
   pub(crate) len: usize,
   pub(crate) cap: usize,
-  pub(crate) pool: BufPoolForSize,
+  pub(crate) pool: BufPool,
 }
 
 unsafe impl Send for Buf {}
 unsafe impl Sync for Buf {}
 
 // Not implemented:
-// - `allocator, from_raw_parts*, into_*, leak, new*, reserve*, resize*, shrink_to*, try_reserve*, with_capacity*`: not applicable.
+// - `from_raw_parts*, into_*, leak, new*, reserve*, resize*, shrink_to*, try_reserve*, with_capacity*`: not applicable.
 // - `as_mut_ptr, as_ptr, is_empty, len`: already available on `Deref/DerefMut`.
 // - `insert, remove, retain*, swap_remove`: unlikely to be used.
 // - `dedup*, drain*, spare_capacity_*, splice, split_*`: complex, may implement if required.
 impl Buf {
   fn _as_full_slice(&mut self) -> &mut [u8] {
     unsafe { slice::from_raw_parts_mut(self.data, self.cap) }
+  }
+
+  pub fn allocator(&self) -> &BufPool {
+    &self.pool
   }
 
   pub fn append(&mut self, other: &mut Buf) {
@@ -111,6 +118,27 @@ impl AsMut<[u8]> for Buf {
   }
 }
 
+impl Borrow<[u8]> for Buf {
+  fn borrow(&self) -> &[u8] {
+    self.as_slice()
+  }
+}
+
+impl BorrowMut<[u8]> for Buf {
+  fn borrow_mut(&mut self) -> &mut [u8] {
+    self.as_mut_slice()
+  }
+}
+
+impl Clone for Buf {
+  /// Uses the same pool that the current `Buf` was allocated from.
+  fn clone(&self) -> Self {
+    let mut clone = self.pool.allocate(self.len());
+    clone.extend_from_slice(self.as_slice());
+    clone
+  }
+}
+
 impl Debug for Buf {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Buf")
@@ -135,7 +163,10 @@ impl DerefMut for Buf {
 
 impl Drop for Buf {
   fn drop(&mut self) {
-    self.pool.0.lock().push_back(self.data);
+    self.pool.sizes[usz!(self.capacity().ilog2())]
+      .0
+      .lock()
+      .push_back(self.data);
   }
 }
 

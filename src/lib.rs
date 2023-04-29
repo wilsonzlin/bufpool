@@ -33,9 +33,8 @@ impl BufPool {
   /// NOTE: This provides a Buf that can grow to `cap`, but it has an initial length of zero. Use `allocate_with_zeros` to return something equivalent to `vec![0u8; cap]`.
   pub fn allocate(&self, cap: usize) -> Buf {
     let cap = cap.next_power_of_two();
-    let pool = self.sizes[usz!(cap.ilog2())].clone();
     // Release lock ASAP.
-    let existing = pool.0.lock().pop_front();
+    let existing = self.sizes[usz!(cap.ilog2())].0.lock().pop_front();
     let data = if let Some(data) = existing {
       data
     } else {
@@ -50,15 +49,32 @@ impl BufPool {
       data,
       len: 0,
       cap,
-      pool,
+      pool: self.clone(),
     }
   }
 
-  pub fn allocate_with_zeros(&self, len: usize) -> Buf {
+  pub fn allocate_from_data<D: AsRef<[u8]>>(&self, data: impl Into<D>) -> Buf {
+    let data = data.into();
+    let mut buf = self.allocate(data.as_ref().len());
+    buf.extend_from_slice(data.as_ref());
+    buf
+  }
+
+  pub fn allocate_from_iter(&self, data: impl IntoIterator<Item = u8>, len: usize) -> Buf {
+    let mut buf = self.allocate(len);
+    buf.extend(data);
+    buf
+  }
+
+  pub fn allocate_with_fill(&self, val: u8, len: usize) -> Buf {
     let mut buf = self.allocate(len);
     unsafe { buf.set_len(len) };
-    buf.fill(0);
+    buf.fill(val);
     buf
+  }
+
+  pub fn allocate_with_zeros(&self, len: usize) -> Buf {
+    self.allocate_with_fill(0, len)
   }
 }
 
