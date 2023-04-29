@@ -141,6 +141,22 @@ impl Drop for Buf {
 
 impl Eq for Buf {}
 
+impl<'a> Extend<&'a u8> for Buf {
+  fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
+    for b in iter {
+      self.push(*b);
+    }
+  }
+}
+
+impl Extend<u8> for Buf {
+  fn extend<T: IntoIterator<Item = u8>>(&mut self, iter: T) {
+    for b in iter {
+      self.push(b);
+    }
+  }
+}
+
 impl Hash for Buf {
   fn hash<H: Hasher>(&self, state: &mut H) {
     self.as_slice().hash(state);
