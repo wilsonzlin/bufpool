@@ -33,7 +33,7 @@ unsafe impl Sync for Buf {}
 // - `insert, remove, retain*, swap_remove`: unlikely to be used.
 // - `dedup*, drain*, spare_capacity_*, splice, split_*`: complex, may implement if required.
 impl Buf {
-  fn as_full_slice(&mut self) -> &mut [u8] {
+  fn _as_full_slice(&mut self) -> &mut [u8] {
     unsafe { slice::from_raw_parts_mut(self.data, self.cap) }
   }
 
@@ -62,14 +62,14 @@ impl Buf {
   pub fn extend_from_slice(&mut self, other: &[u8]) {
     let idx = self.len;
     // SAFETY: This will panic if out of bounds.
-    self.as_full_slice()[idx..idx + other.len()].copy_from_slice(other);
+    self._as_full_slice()[idx..idx + other.len()].copy_from_slice(other);
     self.len += other.len();
   }
 
   pub fn extend_from_within(&mut self, src: impl RangeBounds<usize>) {
     let idx = self.len;
     // SAFETY: This will panic if out of bounds.
-    self.as_full_slice().copy_within(src, idx);
+    self._as_full_slice().copy_within(src, idx);
   }
 
   pub fn push(&mut self, v: u8) {
@@ -83,7 +83,7 @@ impl Buf {
     };
     self.len -= 1;
     let idx = self.len;
-    Some(self.as_full_slice()[idx])
+    Some(self._as_full_slice()[idx])
   }
 
   pub unsafe fn set_len(&mut self, len: usize) {
