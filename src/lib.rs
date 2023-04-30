@@ -3,8 +3,9 @@ pub mod buf;
 use buf::Buf;
 use off64::usz;
 use once_cell::sync::Lazy;
+use std::alloc::alloc_zeroed;
+use std::alloc::Layout;
 use std::collections::VecDeque;
-use std::mem::forget;
 use std::mem::size_of;
 use std::sync::Arc;
 
@@ -14,37 +15,48 @@ struct BufPoolForSize(Arc<parking_lot::Mutex<VecDeque<*mut u8>>>);
 unsafe impl Send for BufPoolForSize {}
 unsafe impl Sync for BufPoolForSize {}
 
+struct BufPoolInner {
+  align: usize,
+  sizes: Vec<BufPoolForSize>,
+}
+
 #[derive(Clone)]
 pub struct BufPool {
-  sizes: Arc<Vec<BufPoolForSize>>,
+  inner: Arc<BufPoolInner>,
 }
 
 impl BufPool {
-  pub fn new() -> Self {
+  pub fn with_alignment(align: usize) -> Self {
+    assert!(align > 0);
+    assert!(align.is_power_of_two());
     let mut sizes = Vec::new();
     for _ in 0..(size_of::<usize>() * 8) {
       sizes.push(Default::default());
     }
     Self {
-      sizes: Arc::new(sizes),
+      inner: Arc::new(BufPoolInner { align, sizes }),
     }
   }
 
-  /// NOTE: This provides a Buf that can grow to `cap`, but it has an initial length of zero. Use `allocate_with_zeros` to return something equivalent to `vec![0u8; cap]`.
+  pub fn new() -> Self {
+    Self::with_alignment(size_of::<usize>())
+  }
+
+  /// NOTE: This provides a Buf that can grow to `cap`, but has an initial length of zero. Use `allocate_with_zeros` to return something equivalent to `vec![0u8; cap]`.
+  /// `cap` can safely be zero, but it will still cause an allocation of one byte due to rounding.
   pub fn allocate(&self, cap: usize) -> Buf {
+    // This will round `0` to `1`.
     let cap = cap.next_power_of_two();
     // Release lock ASAP.
-    let existing = self.sizes[usz!(cap.ilog2())].0.lock().pop_front();
+    let existing = self.inner.sizes[usz!(cap.ilog2())].0.lock().pop_front();
     let data = if let Some(data) = existing {
       data
     } else {
-      // We can't use `Box::new([0u8; cap])` because `cap` isn't constant.
-      let mut new = vec![0u8; cap];
-      assert_eq!(new.capacity(), cap);
-      let data = new.as_mut_ptr();
-      forget(new);
-      data
+      // TODO Out of an abundance of caution, we currently zero-fill new memory (i.e. guaranteed initialised) and don't use `from_size_align_unchecked`. Consider removing these constraints in the future.
+      unsafe { alloc_zeroed(Layout::from_size_align(cap, self.inner.align).unwrap()) }
     };
+    // Failed allocations may return null.
+    assert!(!data.is_null());
     Buf {
       data,
       len: 0,
@@ -53,8 +65,7 @@ impl BufPool {
     }
   }
 
-  pub fn allocate_from_data<D: AsRef<[u8]>>(&self, data: impl Into<D>) -> Buf {
-    let data = data.into();
+  pub fn allocate_from_data(&self, data: impl AsRef<[u8]>) -> Buf {
     let mut buf = self.allocate(data.as_ref().len());
     buf.extend_from_slice(data.as_ref());
     buf

@@ -20,7 +20,6 @@ use std::slice::SliceIndex;
 // - It would expose uninitialised data, unless we zero-fill every allocation (whether new or from the pool).
 // - It would limit the usability, as it wouldn't be a drop in (or almost) replacement for Vec<u8>.
 pub struct Buf {
-  // We use a pointer to avoid complexities and subtleties with dropping when using a Vec<u8> that we also want to move back into the pool on Drop. We currently never free the memory anyway.
   pub(crate) data: *mut u8,
   pub(crate) len: usize,
   pub(crate) cap: usize,
@@ -163,7 +162,7 @@ impl DerefMut for Buf {
 
 impl Drop for Buf {
   fn drop(&mut self) {
-    self.pool.sizes[usz!(self.capacity().ilog2())]
+    self.pool.inner.sizes[usz!(self.capacity().ilog2())]
       .0
       .lock()
       .push_back(self.data);
