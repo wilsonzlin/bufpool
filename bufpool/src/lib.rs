@@ -9,6 +9,7 @@ use std::collections::VecDeque;
 use std::mem::size_of;
 use std::sync::Arc;
 
+// TODO Benchmark parking_lot::Mutex<VecDeque<>> against crossbeam_channel and flume. Also consider one allocator per thread, which could waste a lot of memory but also be very quick.
 #[derive(Clone, Default)]
 struct BufPoolForSize(Arc<parking_lot::Mutex<VecDeque<*mut u8>>>);
 

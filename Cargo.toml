@@ -1,14 +1,4 @@
-[package]
-name = "bufpool"
-version = "0.2.0"
-description = "Vec<u8> pool allocator"
-license = "Apache-2.0"
-homepage = "https://github.com/wilsonzlin/bufpool"
-repository = "https://github.com/wilsonzlin/bufpool.git"
-authors = ["Wilson Lin <code@wilsonl.in>"]
-edition = "2021"
-
-[dependencies]
-off64 = "0.6.0"
-once_cell = "1.17.1"
-parking_lot = "0.12.1"
+[workspace]
+members = [
+  "bufpool"
+]
