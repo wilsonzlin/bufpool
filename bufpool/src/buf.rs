@@ -3,6 +3,7 @@ use off64::usz;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -13,6 +14,7 @@ use std::ops::DerefMut;
 use std::ops::Index;
 use std::ops::IndexMut;
 use std::ops::RangeBounds;
+use std::ptr;
 use std::slice;
 use std::slice::SliceIndex;
 
@@ -139,7 +141,7 @@ impl Clone for Buf {
 }
 
 impl Debug for Buf {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Buf")
       .field("data", &self.as_slice())
       .finish()
@@ -217,8 +219,7 @@ impl Ord for Buf {
 
 impl PartialEq for Buf {
   fn eq(&self, other: &Self) -> bool {
-    self.len == other.len
-      && (std::ptr::eq(self.data, other.data) || self.as_slice() == other.as_slice())
+    self.len == other.len && (ptr::eq(self.data, other.data) || self.as_slice() == other.as_slice())
   }
 }
 

@@ -1,0 +1,13 @@
+[package]
+name = "bufpool-fixed"
+version = "0.1.0"
+description = "Fixed-length buffer pool allocator"
+license = "Apache-2.0"
+homepage = "https://github.com/wilsonzlin/bufpool"
+repository = "https://github.com/wilsonzlin/bufpool.git"
+authors = ["Wilson Lin <code@wilsonl.in>"]
+edition = "2021"
+
+[dependencies]
+off64 = "0.6.0"
+parking_lot = "0.12.1"
