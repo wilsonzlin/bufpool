@@ -43,8 +43,10 @@ impl FixedBufPool {
     Self::with_alignment(max(64, size_of::<usize>()))
   }
 
-  /// `cap` can safely be zero, but it will still cause an allocation of one byte due to rounding.
+  /// `cap` must be a power of two. It can safely be zero, but it will still cause an allocation of one byte due to rounding.
   pub fn allocate_with_zeros(&self, cap: usize) -> FixedBuf {
+    // FixedBuf values do not have a length + capacity, so check that `cap` will be fully used.
+    assert!(cap.is_power_of_two());
     // This will round `0` to `1`.
     let cap = cap.next_power_of_two();
     // Release lock ASAP.

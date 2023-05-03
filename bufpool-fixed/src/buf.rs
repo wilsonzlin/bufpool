@@ -71,7 +71,7 @@ impl BorrowMut<[u8]> for FixedBuf {
 }
 
 impl Clone for FixedBuf {
-  /// Uses the same pool that the current `Buf` was allocated from.
+  /// Uses the same pool that the current `FixedBuf` was allocated from.
   fn clone(&self) -> Self {
     let mut clone = self.pool.allocate_with_zeros(self.len());
     clone.copy_from_slice(self.as_slice());
