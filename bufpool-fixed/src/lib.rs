@@ -43,6 +43,12 @@ impl FixedBufPool {
     Self::with_alignment(max(64, size_of::<usize>()))
   }
 
+  pub fn allocate_from_data(&self, data: impl AsRef<[u8]>) -> FixedBuf {
+    let mut buf = self.allocate_with_zeros(data.as_ref().len());
+    buf.copy_from_slice(data.as_ref());
+    buf
+  }
+
   /// `cap` must be a power of two. It can safely be zero, but it will still cause an allocation of one byte due to rounding.
   pub fn allocate_with_zeros(&self, cap: usize) -> FixedBuf {
     // FixedBuf values do not have a length + capacity, so check that `cap` will be fully used.
