@@ -3,7 +3,7 @@ pub mod buf;
 use buf::Buf;
 use off64::usz;
 use once_cell::sync::Lazy;
-use std::alloc::alloc_zeroed;
+use std::alloc::alloc;
 use std::alloc::Layout;
 use std::collections::VecDeque;
 use std::mem::size_of;
@@ -53,8 +53,7 @@ impl BufPool {
     let data = if let Some(data) = existing {
       data
     } else {
-      // TODO Out of an abundance of caution, we currently zero-fill new memory (i.e. guaranteed initialised) and don't use `from_size_align_unchecked`. Consider removing these constraints in the future.
-      unsafe { alloc_zeroed(Layout::from_size_align(cap, self.inner.align).unwrap()) }
+      unsafe { alloc(Layout::from_size_align(cap, self.inner.align).unwrap()) }
     };
     // Failed allocations may return null.
     assert!(!data.is_null());
