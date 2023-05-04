@@ -78,9 +78,15 @@ impl BufPool {
     buf
   }
 
-  pub fn allocate_with_fill(&self, val: u8, len: usize) -> Buf {
+  /// The returned Buf will have a length equal to the capacity, filled with uninitialised bytes.
+  pub fn allocate_uninitialised(&self, len: usize) -> Buf {
     let mut buf = self.allocate(len);
     unsafe { buf.set_len(len) };
+    buf
+  }
+
+  pub fn allocate_with_fill(&self, val: u8, len: usize) -> Buf {
+    let mut buf = self.allocate_uninitialised(len);
     buf.fill(val);
     buf
   }
