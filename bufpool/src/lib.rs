@@ -7,6 +7,8 @@ use std::alloc::alloc;
 use std::alloc::Layout;
 use std::collections::VecDeque;
 use std::mem::size_of;
+use std::panic::RefUnwindSafe;
+use std::panic::UnwindSafe;
 use std::sync::Arc;
 
 // TODO Benchmark parking_lot::Mutex<VecDeque<>> against crossbeam_channel and flume. Also consider one allocator per thread, which could waste a lot of memory but also be very quick.
@@ -15,6 +17,8 @@ struct BufPoolForSize(Arc<parking_lot::Mutex<VecDeque<*mut u8>>>);
 
 unsafe impl Send for BufPoolForSize {}
 unsafe impl Sync for BufPoolForSize {}
+impl UnwindSafe for BufPoolForSize {}
+impl RefUnwindSafe for BufPoolForSize {}
 
 struct BufPoolInner {
   align: usize,

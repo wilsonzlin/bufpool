@@ -103,7 +103,7 @@ impl Buf {
     if len >= self.len {
       return;
     };
-    self.len = self.len;
+    self.len = len;
   }
 }
 
