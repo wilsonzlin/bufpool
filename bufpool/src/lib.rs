@@ -1,7 +1,6 @@
 pub mod buf;
 
 use buf::Buf;
-use off64::usz;
 use once_cell::sync::Lazy;
 use std::alloc::alloc;
 use std::alloc::Layout;
@@ -22,6 +21,7 @@ impl RefUnwindSafe for BufPoolForSize {}
 
 struct BufPoolInner {
   align: usize,
+  #[cfg(not(feature = "no-pool"))]
   sizes: Vec<BufPoolForSize>,
 }
 
@@ -34,12 +34,14 @@ impl BufPool {
   pub fn with_alignment(align: usize) -> Self {
     assert!(align > 0);
     assert!(align.is_power_of_two());
-    let mut sizes = Vec::new();
-    for _ in 0..(size_of::<usize>() * 8) {
-      sizes.push(Default::default());
-    }
     Self {
-      inner: Arc::new(BufPoolInner { align, sizes }),
+      inner: Arc::new(BufPoolInner {
+        align,
+        #[cfg(not(feature = "no-pool"))]
+        sizes: (0..(size_of::<usize>() * 8))
+          .map(|_| Default::default())
+          .collect(),
+      }),
     }
   }
 
@@ -47,20 +49,28 @@ impl BufPool {
     Self::with_alignment(size_of::<usize>())
   }
 
+  fn system_allocate_raw(&self, cap: usize) -> *mut u8 {
+    unsafe { alloc(Layout::from_size_align(cap, self.inner.align).unwrap()) }
+  }
+
   /// NOTE: This provides a Buf that can grow to `cap`, but has an initial length of zero. Use `allocate_with_zeros` to return something equivalent to `vec![0u8; cap]`.
   /// `cap` can safely be zero, but it will still cause an allocation of one byte due to rounding.
   pub fn allocate(&self, cap: usize) -> Buf {
     // This will round `0` to `1`.
     let cap = cap.next_power_of_two();
-    // Release lock ASAP.
-    let existing = self.inner.sizes[usz!(cap.ilog2())].0.lock().pop_front();
-    let data = if let Some(data) = existing {
+
+    #[cfg(not(feature = "no-pool"))]
+    let data = if let Some(data) = self.inner.sizes[cap.ilog2() as usize].0.lock().pop_front() {
       data
     } else {
-      unsafe { alloc(Layout::from_size_align(cap, self.inner.align).unwrap()) }
+      self.system_allocate_raw(cap)
     };
+    #[cfg(feature = "no-pool")]
+    let data = self.system_allocate_raw(cap);
+
     // Failed allocations may return null.
     assert!(!data.is_null());
+
     Buf {
       data,
       len: 0,

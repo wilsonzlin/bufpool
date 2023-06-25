@@ -1,5 +1,4 @@
 use crate::BufPool;
-use off64::usz;
 use std::borrow::Borrow;
 use std::borrow::BorrowMut;
 use std::cmp::Ordering;
@@ -164,10 +163,16 @@ impl DerefMut for Buf {
 
 impl Drop for Buf {
   fn drop(&mut self) {
-    self.pool.inner.sizes[usz!(self.capacity().ilog2())]
+    #[cfg(not(feature = "no-pool"))]
+    self.pool.inner.sizes[self.capacity().ilog2() as usize]
       .0
       .lock()
       .push_back(self.data);
+    #[cfg(feature = "no-pool")]
+    unsafe {
+      let layout = std::alloc::Layout::from_size_align(self.cap, self.pool.inner.align).unwrap();
+      std::alloc::dealloc(self.data, layout)
+    }
   }
 }
 
